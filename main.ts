@@ -293,7 +293,6 @@ interface Hunk {
 interface BodyLine {
   kind: 'ctx' | 'old' | 'new' | 'backslash';
   text: string;
-  raw: string;
 }
 
 const HUNK_RE = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
@@ -307,35 +306,37 @@ function parseHunkBody(lines: string[], start: number): { body: BodyLine[]; next
     if (l.startsWith('diff --git ')) break;
     if (l.startsWith('--- ') && (lines[i + 1] ?? '').startsWith('+++ ')) break;
     if (l === '') {
-      body.push({ kind: 'ctx', text: '', raw: l });
+      body.push({ kind: 'ctx', text: '' });
       i++;
       continue;
     }
     const c = l[0]!;
     if (c === ' ') {
-      body.push({ kind: 'ctx', text: l.slice(1), raw: l });
+      body.push({ kind: 'ctx', text: l.slice(1) });
       i++;
       continue;
     }
     if (c === '-') {
-      body.push({ kind: 'old', text: l.slice(1), raw: l });
+      body.push({ kind: 'old', text: l.slice(1) });
       i++;
       continue;
     }
     if (c === '+') {
-      body.push({ kind: 'new', text: l.slice(1), raw: l });
+      body.push({ kind: 'new', text: l.slice(1) });
       i++;
       continue;
     }
     if (c === '\\') {
-      body.push({ kind: 'backslash', text: l.slice(1), raw: l });
+      body.push({ kind: 'backslash', text: l.slice(1) });
       i++;
       continue;
     }
     break;
   }
-  // Empty lines at the end of a body are not part of it.
-  while (body.length > 0 && body[body.length - 1]!.raw === '') body.pop();
+  // Empty lines at the end of a body are not part of it. SPEC.md section 6 defines an empty line as a
+  // context line whose text is empty, so a trailing ' ' line is one too, as is a bare empty line; a
+  // trailing context line whose text is only spaces, and a trailing '-' or '+' line, are not.
+  while (body.length > 0 && body[body.length - 1]!.kind === 'ctx' && body[body.length - 1]!.text === '') body.pop();
   return { body, next: i };
 }
 
